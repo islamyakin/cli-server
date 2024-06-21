@@ -7,9 +7,6 @@ import (
 	"net/http"
 )
 
-var validUsername = "admin"
-var validPassword = "password"
-
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -42,17 +39,42 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	var loginReq LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&loginReq); err != nil {
+		log.Println("Failed to decode request body:", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	if loginReq.Username == validUsername && loginReq.Password == validPassword {
-		sapaLogin := "Login berhasil, Halo" + " " + loginReq.Username
-		resp := LoginResponse{Token: validToken, Message: sapaLogin}
-		json.NewEncoder(w).Encode(resp)
-		log.Println("Successful login fon user:", loginReq.Username)
-	} else {
+	log.Println("Received login request:", loginReq)
+
+	ok, data, err := AuthUsingLDAP(loginReq.Username, loginReq.Password)
+
+	if !ok {
+		log.Println("LDAP authentication failed for user:", loginReq.Username)
+		http.Error(w, "Invalid username/password", http.StatusUnauthorized)
+		return
+	}
+	if err != nil {
+		log.Println("LDAP authentication error:", err)
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+	tokenString, err := CreateToken(data.FullName)
+	if err != nil {
+		log.Println("Failed to create token:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	resp := LoginResponse{
+		Token:   tokenString,
+		Message: fmt.Sprintf("Welcome %s", data.FullName),
+	}
+
+	log.Println("Sending response:", resp)
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Println("Failed to encode response:", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }
 
@@ -67,11 +89,17 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	if msgReq.Token != validToken {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	err := verifyToken(msgReq.Token)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "Invalid token")
 		return
 	}
+
+	//if msgReq.Token != tokens {
+	//	http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	//	return
+	//}
 
 	log.Println("Received message from client:", msgReq.Message)
 	fmt.Fprintf(w, "Logged message: %s", msgReq.Message)
