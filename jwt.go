@@ -10,12 +10,14 @@ var (
 	secretKey = []byte("secret -key")
 )
 
-func CreateToken(username string) (string, error) {
+func CreateToken(username, email, name string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"username": username,
+			"email":    email,
+			"surname":  name,
 			"iat":      time.Now().Unix(),
-			"exp":      time.Now().Add(time.Hour * 24).Unix(),
+			"exp":      time.Now().Add(time.Minute * 30).Unix(),
 		})
 	tokenString, err := token.SignedString(secretKey)
 	if err != nil {
