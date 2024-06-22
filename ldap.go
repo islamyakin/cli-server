@@ -6,11 +6,11 @@ import (
 )
 
 const (
-	ldapServer   = "192.168.11.47"
-	ldapPort     = 389
-	ldapBindDN   = "cn=admin,dc=sevima,dc=com"
-	ldapPassword = "H4ru5#S3cr3TT"
-	ldapSearchDN = "dc=sevima,dc=com"
+	ldapServer   = ""
+	ldapPort     =
+	ldapBindDN   = ""
+	ldapPassword = ""
+	ldapSearchDN = ""
 )
 
 type UserLDAPData struct {
